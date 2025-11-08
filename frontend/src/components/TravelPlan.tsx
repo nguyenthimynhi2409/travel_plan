@@ -56,7 +56,6 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
 
     try {
       const data = await updatePlan(prompt, prevData.current, plan_req);
-
       if (data.itinerary && data.estimate) {
         setPlan(data.itinerary);
         setTotalEstimate(data.estimate);
@@ -90,7 +89,6 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
     prevData.current = {
       itinerary,
       estimate,
-      plan_req
     };
   }, [itinerary, estimate]);
 

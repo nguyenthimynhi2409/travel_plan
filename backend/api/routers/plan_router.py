@@ -65,7 +65,6 @@ async def update_plan(req: UpdatePlanRequest):
                 budget=req.plan_req.budget,
                 preferences=[
                     user_request,
-                    req.plan_req.preferences
                 ],  # Đưa prompt + plan hiện tại vào preferences để LLM dùng
             )
             return updated_plan.dict()
