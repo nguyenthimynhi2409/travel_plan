@@ -51,23 +51,70 @@ class UpdatePlanRequest(BaseModel):
 @router.post("/update-plan")
 async def update_plan(req: UpdatePlanRequest):
     try:
-        # Nếu có current_plan, dùng prompt mới kết hợp để tạo plan cập nhật
+        if not req.plan_req:
+            raise HTTPException(status_code=400, detail="plan_req is required")
+
+        # === Chuẩn bị user_request ===
+        user_request = req.prompt
         if req.current_plan:
             current_plan_json = req.current_plan.json()
-            user_request = f"Cập nhật kế hoạch hiện tại theo nội dung sau:\n{req.prompt}\n\nKế hoạch hiện tại:\n{current_plan_json}"
-
-            # Gọi RAGServiceStrict để generate JSON mới dựa trên prompt + plan hiện tại
-            updated_plan: PlanOutput = rag_service.generate_trip_plan(
-                departure=req.plan_req.departure,
-                destination=req.plan_req.destination,
-                travelers=req.plan_req.travelers,
-                days=req.plan_req.days,
-                budget=req.plan_req.budget,
-                preferences=[
-                    user_request,
-                ],  # Đưa prompt + plan hiện tại vào preferences để LLM dùng
+            user_request = (
+                f"Cập nhật kế hoạch hiện tại theo nội dung sau:\n{req.prompt}\n\n"
+                f"Kế hoạch hiện tại:\n{current_plan_json}"
             )
-            return updated_plan.dict()
+
+        # === Gọi RAGServiceStrict để tạo plan mới ===
+        updated_plan: PlanOutput = rag_service.generate_trip_plan(
+            departure=req.plan_req.departure,
+            destination=req.plan_req.destination,
+            travelers=req.plan_req.travelers,
+            days=req.plan_req.days,
+            budget=req.plan_req.budget,
+            preferences=[
+                user_request,
+                *(req.plan_req.preferences or []),
+            ],
+            start_date=req.plan_req.start_date,
+        )
+
+        # === Tạo chat summary từ plan + extra_info ===
+        chat_text = f"📝 **Kế hoạch đã được cập nhật:**\n\n"
+        chat_text += f"📅 Tổng số ngày: {len(updated_plan.itinerary)}\n"
+        chat_text += f"💰 Tổng chi phí ước tính: {updated_plan.estimate.total:,} VNĐ\n"
+        chat_text += f"💡 Số tips gợi ý: {len(updated_plan.tips or [])}\n\n"
+        chat_text += "**Chi tiết từng ngày:**\n"
+
+        for day in updated_plan.itinerary:
+            chat_text += f"- Ngày {day.day}: {len(day.items)} hoạt động\n"
+            for item in day.items:
+                chat_text += f"    • {item.time} - {item.name} ({item.type})\n"
+
+        if updated_plan.tips:
+            chat_text += "\n**Tips hữu ích:**\n"
+            for tip in updated_plan.tips:
+                chat_text += f"• {tip}\n"
+
+        # === Thêm thông tin extra_info (nếu có) ===
+        if updated_plan.extra_info:
+            if updated_plan.extra_info.changes:
+                chat_text += "\n**Các địa điểm thay đổi/được thêm:**\n"
+                for c in updated_plan.extra_info.changes:
+                    chat_text += f"• {c}\n"
+
+            if updated_plan.extra_info.best_time_to_visit:
+                chat_text += "\n**Thời gian tham quan gợi ý:**\n"
+                for place, time in updated_plan.extra_info.best_time_to_visit.items():
+                    chat_text += f"• {place}: {time}\n"
+
+            if updated_plan.extra_info.tickets:
+                chat_text += "\n**Chi phí vé tham quan:**\n"
+                for place, cost in updated_plan.extra_info.tickets.items():
+                    chat_text += f"• {place}: {cost:,} VNĐ\n"
+
+        return {
+            "plan": updated_plan.dict(),
+            "extra": chat_text,
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

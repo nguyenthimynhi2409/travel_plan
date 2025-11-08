@@ -6,14 +6,19 @@ import {
   FaUserFriends,
   FaUser,
   FaMoneyBillWave,
+  FaUtensils,
+  FaMountain,
+  FaSpa,
+  FaLandmark,
+  FaShoppingBag,
 } from "react-icons/fa";
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
 
   // --- State ---
-  const [departure, setDeparture] = useState(""); // Điểm đi
-  const [destination, setDestination] = useState(""); // Điểm đến
+  const [departure, setDeparture] = useState("");
+  const [destination, setDestination] = useState("");
   const [startDate, setStartDate] = useState("");
   const [budget, setBudget] = useState<"low" | "medium" | "high" | null>(null);
   const [companions, setCompanions] = useState<
@@ -21,6 +26,7 @@ const Home: React.FC = () => {
   >(null);
   const [companionsCount, setCompanionsCount] = useState<number | null>(null);
   const [days, setDays] = useState(3);
+  const [preferences, setPreferences] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   // --- Companion options ---
@@ -29,6 +35,15 @@ const Home: React.FC = () => {
     { key: "couple", label: "Couple", icon: <FaUsers />, count: 2 },
     { key: "family", label: "Family", icon: <FaUsers />, count: 4 },
     { key: "friends", label: "Friends", icon: <FaUserFriends />, count: 3 },
+  ];
+
+  // --- Preference options ---
+  const preferenceOptions = [
+    { key: "food", label: "Ẩm thực", icon: <FaUtensils /> },
+    { key: "adventure", label: "Mạo hiểm", icon: <FaMountain /> },
+    { key: "relax", label: "Nghỉ dưỡng", icon: <FaSpa /> },
+    { key: "culture", label: "Văn hoá", icon: <FaLandmark /> },
+    { key: "shopping", label: "Mua sắm", icon: <FaShoppingBag /> },
   ];
 
   // --- Submit handler ---
@@ -47,7 +62,7 @@ const Home: React.FC = () => {
     setLoading(true);
 
     const budgetValue =
-      budget === "low" ? 3000000 : budget === "medium" ? 10000000 : 20000000;
+      budget === "low" ? 5000000 : budget === "medium" ? 10000000 : 20000000;
 
     const payload = {
       departure,
@@ -55,13 +70,20 @@ const Home: React.FC = () => {
       travelers: companionsCount,
       days,
       budget: budgetValue,
-      preferences: [],
+      preferences,
       start_date: startDate,
     };
 
     const res = await createPlan(payload);
     setLoading(false);
     navigate("/result", { state: { planData: res, plan_req: payload } });
+  };
+
+  // --- Toggle preferences ---
+  const togglePreference = (key: string) => {
+    setPreferences((prev) =>
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
+    );
   };
 
   return (
@@ -156,7 +178,7 @@ const Home: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setCompanions(c.key as any);
-                      setCompanionsCount(c.count); // mặc định
+                      setCompanionsCount(c.count);
                     }}
                     className="flex flex-col items-center"
                   >
@@ -179,6 +201,28 @@ const Home: React.FC = () => {
                     />
                   )}
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Preferences Selection */}
+          <div>
+            <h2 className="font-semibold text-lg mb-2">Sở thích:</h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {preferenceOptions.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => togglePreference(p.key)}
+                  className={`flex flex-col items-center p-4 border rounded-xl transition ${
+                    preferences.includes(p.key)
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-gray-300 hover:border-blue-400"
+                  }`}
+                >
+                  <div className="text-2xl mb-2">{p.icon}</div>
+                  <span className="font-medium">{p.label}</span>
+                </button>
               ))}
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { FC, useEffect, useRef, useState } from "react";
 import { updatePlan } from "../api/planApi";
+import ChatBubble from "./ChatBubble";
 
 interface EstCost {
   accommodation: number;
@@ -40,13 +41,19 @@ const typeColors: Record<string, string> = {
   Transportation: "bg-yellow-200 text-yellow-800",
 };
 
-export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req }) => {
+export const TravelPlan: FC<TravelPlanProps> = ({
+  itinerary,
+  estimate,
+  plan_req,
+}) => {
   const prevData: any = useRef(undefined);
   const [prompt, setPrompt] = useState("");
   const [plan, setPlan] = useState(itinerary);
   const [totalEstimate, setTotalEstimate] = useState(estimate);
   const [loading, setLoading] = useState(false);
-  const [chatHistory, setChatHistory] = useState<{ user: string; bot: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<
+    { user: string; bot: string }[]
+  >([]);
 
   const handleUpdatePlan = async () => {
     if (!prompt.trim()) return;
@@ -56,12 +63,12 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
 
     try {
       const data = await updatePlan(prompt, prevData.current, plan_req);
-      if (data.itinerary && data.estimate) {
-        setPlan(data.itinerary);
-        setTotalEstimate(data.estimate);
+      if (data?.plan?.itinerary && data?.plan?.estimate) {
+        setPlan(data.plan.itinerary);
+        setTotalEstimate(data.plan.estimate);
         setChatHistory((prev) => {
           const newHistory = [...prev];
-          newHistory[newHistory.length - 1].bot = "Cập nhật kế hoạch thành công!";
+          newHistory[newHistory.length - 1].bot = data.extra;
           return newHistory;
         });
       } else {
@@ -97,7 +104,9 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[90vh]">
         {/* Chatbot */}
         <div className="flex flex-col bg-white rounded-xl shadow-md p-6 overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-4">Chatbot cập nhật kế hoạch</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            Cập nhật kế hoạch
+          </h2>
           <div className="flex-1 space-y-4 overflow-y-auto">
             {chatHistory.map((msg, idx) => (
               <div key={idx}>
@@ -108,7 +117,7 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
                 </p>
                 <p className="text-left text-gray-700 mt-2">
                   <span className="bg-green-100 px-3 py-1 rounded-lg inline-block">
-                    {msg.bot}
+                    <ChatBubble content={msg.bot} />
                   </span>
                 </p>
               </div>
@@ -137,7 +146,8 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
           {plan.map((day) => (
             <div key={day.day} className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-2xl font-semibold mb-6">
-                Ngày {day.day} - {new Date(day.date).toLocaleDateString("vi-VN")}
+                Ngày {day.day} -{" "}
+                {new Date(day.date).toLocaleDateString("vi-VN")}
               </h2>
               <div className="relative border-l-2 border-gray-300 pl-6 space-y-6">
                 {day.items.map((item, idx) => (
@@ -148,10 +158,14 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
                     <span className="absolute -left-3 top-1 w-5 h-5 rounded-full bg-blue-500 border-2 border-white shadow-md"></span>
                     <div className="flex-1">
                       <div className="flex items-center space-x-4">
-                        <span className="font-mono text-gray-500 w-20">{item.time}</span>
+                        <span className="font-mono text-gray-500 w-20">
+                          {item.time}
+                        </span>
                         <div>
                           <h3 className="text-lg font-medium">{item.name}</h3>
-                          <p className="text-gray-600 text-sm">{item.description}</p>
+                          <p className="text-gray-600 text-sm">
+                            {item.description}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -180,23 +194,33 @@ export const TravelPlan: FC<TravelPlanProps> = ({ itinerary, estimate, plan_req 
 
           {/* Tổng chi phí */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-2xl font-semibold mb-4">Tổng chi phí ước tính</h2>
+            <h2 className="text-2xl font-semibold mb-4">
+              Tổng chi phí ước tính
+            </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-gray-700">
               <div className="p-4 bg-blue-50 rounded-lg text-center">
                 <p>Khách sạn</p>
-                <p className="font-bold">{totalEstimate.accommodation.toLocaleString()} VND</p>
+                <p className="font-bold">
+                  {totalEstimate.accommodation.toLocaleString()} VND
+                </p>
               </div>
               <div className="p-4 bg-yellow-50 rounded-lg text-center">
                 <p>Di chuyển</p>
-                <p className="font-bold">{totalEstimate.transportation.toLocaleString()} VND</p>
+                <p className="font-bold">
+                  {totalEstimate.transportation.toLocaleString()} VND
+                </p>
               </div>
               <div className="p-4 bg-green-50 rounded-lg text-center">
                 <p>Hoạt động</p>
-                <p className="font-bold">{totalEstimate.activity.toLocaleString()} VND</p>
+                <p className="font-bold">
+                  {totalEstimate.activity.toLocaleString()} VND
+                </p>
               </div>
               <div className="p-4 bg-purple-50 rounded-lg text-center">
                 <p>Tổng cộng</p>
-                <p className="font-bold">{totalEstimate.total.toLocaleString()} VND</p>
+                <p className="font-bold">
+                  {totalEstimate.total.toLocaleString()} VND
+                </p>
               </div>
             </div>
           </div>

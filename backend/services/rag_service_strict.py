@@ -43,10 +43,17 @@ class Estimate(BaseModel):
     total: Optional[int]
 
 
+class ExtraInfo(BaseModel):
+    changes: Optional[List[str]] = Field(default_factory=list)
+    best_time_to_visit: Optional[Dict[str, str]] = Field(default_factory=dict)
+    tickets: Optional[Dict[str, int]] = Field(default_factory=dict)
+
+
 class PlanOutput(BaseModel):
     itinerary: List[Day]
     tips: Optional[List[str]] = Field(default_factory=list)
     estimate: Estimate
+    extra_info: Optional[ExtraInfo] = None  # thêm phần này
 
 
 # === RAG Service Strict (Vietnamese Version) ===
@@ -144,6 +151,7 @@ class RAGServiceStrict:
         budget: int = 1000,
         preferences: Optional[List[str]] = None,
         start_date: Optional[str] = None,
+        current_plan: Optional[PlanOutput] = None,  # nếu muốn so sánh
     ) -> PlanOutput:
 
         preferences = preferences or []
@@ -227,5 +235,26 @@ class RAGServiceStrict:
                 + parsed.estimate.accommodation
                 + parsed.estimate.transportation
             )
+
+        # === Tạo extra_info ===
+        extra_info = ExtraInfo()
+
+        # Thêm các địa điểm mới/thay đổi
+        if current_plan:
+            old_places = {item.name for day in current_plan.itinerary for item in day.items}
+            new_places = {item.name for day in parsed.itinerary for item in day.items}
+            extra_info.changes = list(new_places - old_places)
+
+        # Thêm best_time_to_visit (giả lập gợi ý)
+        for day in parsed.itinerary:
+            for item in day.items:
+                extra_info.best_time_to_visit[item.name] = item.time
+
+        # Thêm tickets (giả lập dựa trên activity cost)
+        for day in parsed.itinerary:
+            for item in day.items:
+                extra_info.tickets[item.name] = item.est_cost.get("activity", 0)
+
+        parsed.extra_info = extra_info
 
         return parsed
